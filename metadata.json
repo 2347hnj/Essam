@@ -1,0 +1,6 @@
+{
+  "name": "NEW WORLD",
+  "description": "Global interactive civilization simulation where citizens worldwide shape an evolving island nation through collective daily voting and strategic governance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

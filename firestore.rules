@@ -1,0 +1,646 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isVerified() && (
+        request.auth.token.email == 'ch.p.deve@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isActiveCitizen() {
+      return isVerified() && (
+        !exists(/databases/$(database)/documents/citizens/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/citizens/$(request.auth.uid)).data.status == 'active'
+      );
+    }
+
+    // Validation Blueprints
+    function isValidCivilization(data) {
+      return data.keys().hasAll([
+          'id', 'nameEn', 'nameAr', 'islandNameEn', 'islandNameAr',
+          'eraEn', 'eraAr', 'dayNumber', 'level', 'population',
+          'food', 'water', 'energy', 'treasury', 'health',
+          'education', 'happiness', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'nameEn', 'nameAr', 'islandNameEn', 'islandNameAr',
+          'eraEn', 'eraAr', 'dayNumber', 'level', 'population',
+          'food', 'water', 'energy', 'treasury', 'health',
+          'education', 'happiness', 'simVersion', 'lastSimulationSummary',
+          'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.nameEn is string && data.nameEn.size() >= 1 && data.nameEn.size() <= 100 &&
+        data.nameAr is string && data.nameAr.size() >= 1 && data.nameAr.size() <= 100 &&
+        data.islandNameEn is string && data.islandNameEn.size() >= 1 && data.islandNameEn.size() <= 100 &&
+        data.islandNameAr is string && data.islandNameAr.size() >= 1 && data.islandNameAr.size() <= 100 &&
+        data.eraEn is string && data.eraEn.size() >= 1 && data.eraEn.size() <= 80 &&
+        data.eraAr is string && data.eraAr.size() >= 1 && data.eraAr.size() <= 80 &&
+        data.dayNumber is number && data.dayNumber >= 1 && data.dayNumber <= 1000000 &&
+        data.level is number && data.level >= 1 && data.level <= 100 &&
+        data.population is number && data.population >= 0 && data.population <= 1000000000 &&
+        data.food is number && data.food >= 0 && data.food <= 100 &&
+        data.water is number && data.water >= 0 && data.water <= 100 &&
+        data.energy is number && data.energy >= 0 && data.energy <= 100 &&
+        data.treasury is number && data.treasury >= -1000000000 && data.treasury <= 10000000000 &&
+        data.health is number && data.health >= 0 && data.health <= 100 &&
+        data.education is number && data.education >= 0 && data.education <= 100 &&
+        data.happiness is number && data.happiness >= 0 && data.happiness <= 100 &&
+        (!('simVersion' in data) || (data.simVersion is number && data.simVersion >= 1)) &&
+        (!('lastSimulationSummary' in data) || data.lastSimulationSummary is map) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidBuilding(data) {
+      return data.keys().hasAll([
+          'civId', 'nameEn', 'nameAr', 'descriptionEn', 'descriptionAr',
+          'category', 'status', 'progress', 'level', 'xPercent', 'yPercent',
+          'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'civId', 'nameEn', 'nameAr', 'descriptionEn', 'descriptionAr',
+          'category', 'status', 'progress', 'level', 'xPercent', 'yPercent',
+          'dailyOutput', 'dailyUpkeep', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.civId) &&
+        data.nameEn is string && data.nameEn.size() >= 1 && data.nameEn.size() <= 100 &&
+        data.nameAr is string && data.nameAr.size() >= 1 && data.nameAr.size() <= 100 &&
+        data.descriptionEn is string && data.descriptionEn.size() >= 1 && data.descriptionEn.size() <= 600 &&
+        data.descriptionAr is string && data.descriptionAr.size() >= 1 && data.descriptionAr.size() <= 600 &&
+        data.category in ['infrastructure', 'agriculture', 'factory', 'energy', 'civic', 'science', 'health'] &&
+        data.status in ['planned', 'constructing', 'completed'] &&
+        data.progress is number && data.progress >= 0 && data.progress <= 100 &&
+        data.level is number && data.level >= 1 && data.level <= 20 &&
+        data.xPercent is number && data.xPercent >= 0 && data.xPercent <= 100 &&
+        data.yPercent is number && data.yPercent >= 0 && data.yPercent <= 100 &&
+        (!('dailyOutput' in data) || data.dailyOutput is map) &&
+        (!('dailyUpkeep' in data) || data.dailyUpkeep is map) &&
+        isValidId(data.createdBy) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidDecision(data) {
+      return data.keys().hasAll([
+          'civId', 'titleEn', 'titleAr', 'descriptionEn', 'descriptionAr',
+          'category', 'status', 'options', 'endsAt', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'civId', 'titleEn', 'titleAr', 'descriptionEn', 'descriptionAr',
+          'category', 'status', 'options', 'winningOptionId', 'endsAt',
+          'approvedAt', 'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.civId) &&
+        data.titleEn is string && data.titleEn.size() >= 2 && data.titleEn.size() <= 160 &&
+        data.titleAr is string && data.titleAr.size() >= 2 && data.titleAr.size() <= 160 &&
+        data.descriptionEn is string && data.descriptionEn.size() >= 2 && data.descriptionEn.size() <= 1200 &&
+        data.descriptionAr is string && data.descriptionAr.size() >= 2 && data.descriptionAr.size() <= 1200 &&
+        data.category in ['infrastructure', 'ecology', 'economy', 'society', 'science'] &&
+        data.status in ['active', 'closed', 'approved', 'rejected'] &&
+        data.options is list && data.options.size() >= 2 && data.options.size() <= 6 && data.options[0] is map &&
+        (!('winningOptionId' in data) || (data.winningOptionId is string && data.winningOptionId.size() <= 64)) &&
+        (!('approvedAt' in data) || data.approvedAt is timestamp) &&
+        data.endsAt is timestamp &&
+        isValidId(data.createdBy) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidVote(data, decisionId, userId) {
+      return data.keys().hasAll(['userId', 'decisionId', 'optionId', 'createdAt']) &&
+        data.keys().hasOnly(['userId', 'decisionId', 'optionId', 'createdAt']) &&
+        isValidId(data.userId) && data.userId == request.auth.uid && data.userId == userId &&
+        isValidId(data.decisionId) && data.decisionId == decisionId &&
+        isValidId(data.optionId) && data.optionId.size() <= 64 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidChronicle(data) {
+      return data.keys().hasAll([
+          'civId', 'dayNumber', 'titleEn', 'titleAr', 'outcomeEn', 'outcomeAr',
+          'winningOptionEn', 'winningOptionAr', 'totalVotes', 'winningPercentage',
+          'imageUrl', 'effects', 'executedAt', 'createdBy'
+        ]) &&
+        data.keys().hasOnly([
+          'civId', 'decisionId', 'dayNumber', 'titleEn', 'titleAr', 'outcomeEn', 'outcomeAr',
+          'winningOptionEn', 'winningOptionAr', 'totalVotes', 'winningPercentage',
+          'imageUrl', 'effects', 'executedAt', 'createdBy'
+        ]) &&
+        isValidId(data.civId) &&
+        (!('decisionId' in data) || (data.decisionId is string && data.decisionId.size() <= 128)) &&
+        data.dayNumber is number && data.dayNumber >= 1 && data.dayNumber <= 1000000 &&
+        data.titleEn is string && data.titleEn.size() >= 2 && data.titleEn.size() <= 160 &&
+        data.titleAr is string && data.titleAr.size() >= 2 && data.titleAr.size() <= 160 &&
+        data.outcomeEn is string && data.outcomeEn.size() >= 2 && data.outcomeEn.size() <= 1000 &&
+        data.outcomeAr is string && data.outcomeAr.size() >= 2 && data.outcomeAr.size() <= 1000 &&
+        data.winningOptionEn is string && data.winningOptionEn.size() >= 1 && data.winningOptionEn.size() <= 160 &&
+        data.winningOptionAr is string && data.winningOptionAr.size() >= 1 && data.winningOptionAr.size() <= 160 &&
+        data.totalVotes is number && data.totalVotes >= 0 &&
+        data.winningPercentage is number && data.winningPercentage >= 0 && data.winningPercentage <= 100 &&
+        data.imageUrl is string && data.imageUrl.size() <= 400 &&
+        data.effects is map &&
+        data.executedAt is timestamp &&
+        isValidId(data.createdBy);
+    }
+
+    function isValidNews(data) {
+      return data.keys().hasAll([
+          'civId', 'titleEn', 'titleAr', 'bodyEn', 'bodyAr',
+          'category', 'createdBy', 'publishedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'civId', 'titleEn', 'titleAr', 'bodyEn', 'bodyAr',
+          'category', 'createdBy', 'publishedAt'
+        ]) &&
+        isValidId(data.civId) &&
+        data.titleEn is string && data.titleEn.size() >= 2 && data.titleEn.size() <= 160 &&
+        data.titleAr is string && data.titleAr.size() >= 2 && data.titleAr.size() <= 160 &&
+        data.bodyEn is string && data.bodyEn.size() >= 2 && data.bodyEn.size() <= 2000 &&
+        data.bodyAr is string && data.bodyAr.size() >= 2 && data.bodyAr.size() <= 2000 &&
+        data.category in ['announcement', 'milestone', 'directive', 'ecology'] &&
+        isValidId(data.createdBy) &&
+        data.publishedAt is timestamp;
+    }
+
+    function numField(data, key, fallback) {
+      return (key in data && data[key] is number) ? data[key] : fallback;
+    }
+
+    function listSizeOrZero(data, key) {
+      return (key in data && data[key] is list) ? data[key].size() : 0;
+    }
+
+    function isValidWorldPos(pos) {
+      return pos is map &&
+        pos.keys().hasAll(['x', 'y', 'z', 'yaw']) &&
+        pos.keys().hasOnly(['x', 'y', 'z', 'yaw']) &&
+        pos.x is number && pos.x >= -150 && pos.x <= 150 &&
+        pos.y is number && pos.y >= -20 && pos.y <= 150 &&
+        pos.z is number && pos.z >= -150 && pos.z <= 150 &&
+        pos.yaw is number && pos.yaw >= -100 && pos.yaw <= 100;
+    }
+
+    function isValidCitizen(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'displayName', 'photoURL', 'votesCount', 'participationsCount',
+          'role', 'status', 'lastVotedDecisionId', 'joinedAt', 'lastActiveAt'
+        ]) &&
+        data.keys().hasOnly([
+          'uid', 'displayName', 'photoURL', 'citizenshipNumber', 'citizenshipCode',
+          'professionEn', 'professionAr', 'coins', 'assets', 'xp', 'level',
+          'avatarColor', 'worldPosition', 'isOnline', 'votesCount', 'participationsCount',
+          'role', 'status', 'lastVotedDecisionId', 'joinedAt', 'lastActiveAt'
+        ]) &&
+        isValidId(data.uid) && data.uid == userId &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100 &&
+        data.photoURL is string && data.photoURL.size() <= 500 &&
+        (!('citizenshipNumber' in data) || (data.citizenshipNumber is number && data.citizenshipNumber >= 1 && data.citizenshipNumber <= 1000000000)) &&
+        (!('citizenshipCode' in data) || (data.citizenshipCode is string && data.citizenshipCode.size() >= 2 && data.citizenshipCode.size() <= 32)) &&
+        (!('professionEn' in data) || (data.professionEn is string && data.professionEn.size() >= 1 && data.professionEn.size() <= 80)) &&
+        (!('professionAr' in data) || (data.professionAr is string && data.professionAr.size() >= 1 && data.professionAr.size() <= 80)) &&
+        (!('coins' in data) || (data.coins is number && data.coins >= 0 && data.coins <= 100000000)) &&
+        (!('assets' in data) || (data.assets is list && data.assets.size() <= 30)) &&
+        (!('xp' in data) || (data.xp is number && data.xp >= 0 && data.xp <= 100000000)) &&
+        (!('level' in data) || (data.level is number && data.level >= 1 && data.level <= 1000)) &&
+        (!('avatarColor' in data) || (data.avatarColor is string && data.avatarColor.size() >= 4 && data.avatarColor.size() <= 24)) &&
+        (!('worldPosition' in data) || isValidWorldPos(data.worldPosition)) &&
+        (!('isOnline' in data) || data.isOnline is bool) &&
+        data.votesCount is number && data.votesCount >= 0 &&
+        data.participationsCount is number && data.participationsCount >= 0 &&
+        data.role in ['citizen', 'admin', 'founder'] &&
+        data.status in ['active', 'suspended'] &&
+        data.lastVotedDecisionId is string && data.lastVotedDecisionId.size() <= 128 &&
+        data.joinedAt is timestamp &&
+        data.lastActiveAt is timestamp;
+    }
+
+    function isValidWorldCounter(data, counterId) {
+      return data.keys().hasAll(['id', 'totalRegistered', 'nextCitizenSeq', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'totalRegistered', 'nextCitizenSeq', 'updatedAt']) &&
+        isValidId(data.id) && data.id == counterId &&
+        data.totalRegistered is number && data.totalRegistered >= 0 && data.totalRegistered <= 1000000000 &&
+        data.nextCitizenSeq is number && data.nextCitizenSeq >= 0 && data.nextCitizenSeq <= 1000000000 &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidWorldPresence(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'displayName', 'citizenshipCode', 'professionEn', 'professionAr',
+          'avatarColor', 'x', 'y', 'z', 'yaw', 'speed', 'isOnline', 'isInWorld', 'lastSeenAt'
+        ]) &&
+        data.keys().hasOnly([
+          'uid', 'displayName', 'citizenshipCode', 'professionEn', 'professionAr',
+          'avatarColor', 'x', 'y', 'z', 'yaw', 'speed', 'isOnline', 'isInWorld', 'lastSeenAt'
+        ]) &&
+        isValidId(data.uid) && data.uid == userId &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100 &&
+        data.citizenshipCode is string && data.citizenshipCode.size() >= 1 && data.citizenshipCode.size() <= 32 &&
+        data.professionEn is string && data.professionEn.size() >= 1 && data.professionEn.size() <= 80 &&
+        data.professionAr is string && data.professionAr.size() >= 1 && data.professionAr.size() <= 80 &&
+        data.avatarColor is string && data.avatarColor.size() >= 4 && data.avatarColor.size() <= 24 &&
+        data.x is number && data.x >= -150 && data.x <= 150 &&
+        data.y is number && data.y >= -20 && data.y <= 150 &&
+        data.z is number && data.z >= -150 && data.z <= 150 &&
+        data.yaw is number && data.yaw >= -100 && data.yaw <= 100 &&
+        data.speed is number && data.speed >= 0 && data.speed <= 40 &&
+        data.isOnline is bool &&
+        data.isInWorld is bool &&
+        data.lastSeenAt is timestamp;
+    }
+
+    function isValidUserPrivate(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'createdAt', 'updatedAt']) &&
+        isValidId(data.uid) && data.uid == userId &&
+        data.email is string && data.email.size() <= 200 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRole(data, userId) {
+      return data.keys().hasAll(['uid', 'grantedBy', 'grantedAt']) &&
+        data.keys().hasOnly(['uid', 'grantedBy', 'grantedAt']) &&
+        isValidId(data.uid) && data.uid == userId &&
+        isValidId(data.grantedBy) &&
+        data.grantedAt is timestamp;
+    }
+
+    function isValidEvent(data) {
+      return data.keys().hasAll([
+          'civId', 'dayNumber', 'titleEn', 'titleAr', 'descriptionEn', 'descriptionAr',
+          'severity', 'effects', 'breakdown', 'triggeredAt', 'createdBy'
+        ]) &&
+        data.keys().hasOnly([
+          'civId', 'dayNumber', 'titleEn', 'titleAr', 'descriptionEn', 'descriptionAr',
+          'severity', 'effects', 'breakdown', 'triggeredAt', 'createdBy'
+        ]) &&
+        isValidId(data.civId) &&
+        data.dayNumber is number && data.dayNumber >= 1 && data.dayNumber <= 1000000 &&
+        data.titleEn is string && data.titleEn.size() >= 2 && data.titleEn.size() <= 160 &&
+        data.titleAr is string && data.titleAr.size() >= 2 && data.titleAr.size() <= 160 &&
+        data.descriptionEn is string && data.descriptionEn.size() >= 2 && data.descriptionEn.size() <= 1000 &&
+        data.descriptionAr is string && data.descriptionAr.size() >= 2 && data.descriptionAr.size() <= 1000 &&
+        data.severity in ['positive', 'neutral', 'warning'] &&
+        data.effects is map &&
+        data.breakdown is map &&
+        data.triggeredAt is timestamp &&
+        isValidId(data.createdBy);
+    }
+
+    // 1. Civilizations
+    match /civilizations/{civId} {
+      allow get: if isValidId(civId);
+      allow list: if existing().id is string;
+      allow create: if isValidId(civId) && isAdmin() &&
+        isValidCivilization(incoming()) &&
+        incoming().id == civId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(civId) &&
+        isValidCivilization(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            isVerified() &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['population', 'updatedAt']) &&
+            !exists(/databases/$(database)/documents/citizens/$(request.auth.uid)) &&
+            existsAfter(/databases/$(database)/documents/citizens/$(request.auth.uid)) &&
+            incoming().population == getAfter(/databases/$(database)/documents/counters/world_registry).data.totalRegistered
+          )
+        );
+      allow delete: if isValidId(civId) && isAdmin();
+    }
+
+    // 2. Buildings & Island Projects
+    match /buildings/{buildingId} {
+      allow get: if isValidId(buildingId);
+      allow list: if existing().civId is string;
+      allow create: if isValidId(buildingId) && isAdmin() &&
+        isValidBuilding(incoming()) &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        existsAfter(/databases/$(database)/documents/civilizations/$(incoming().civId));
+      allow update: if isValidId(buildingId) && isAdmin() &&
+        isValidBuilding(incoming()) &&
+        incoming().civId == existing().civId &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(buildingId) && isAdmin();
+    }
+
+    // 3. Daily Decisions & Collective Votes
+    match /decisions/{decisionId} {
+      allow get: if isValidId(decisionId);
+      allow list: if existing().civId is string;
+      allow create: if isValidId(decisionId) && isAdmin() &&
+        isValidDecision(incoming()) &&
+        incoming().status == 'active' &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        existsAfter(/databases/$(database)/documents/civilizations/$(incoming().civId));
+      allow update: if isValidId(decisionId) && isAdmin() &&
+        isValidDecision(incoming()) &&
+        incoming().civId == existing().civId &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(decisionId) && isAdmin();
+
+      match /votes/{userId} {
+        allow get: if isValidId(decisionId) && isValidId(userId);
+        allow list: if existing().decisionId is string;
+        allow create: if isValidId(decisionId) && isValidId(userId) &&
+          isVerified() && isOwner(userId) &&
+          isValidVote(incoming(), decisionId, userId) &&
+          incoming().createdAt == request.time &&
+          isActiveCitizen() &&
+          !exists(/databases/$(database)/documents/decisions/$(decisionId)/votes/$(userId)) &&
+          get(/databases/$(database)/documents/decisions/$(decisionId)).data.status == 'active' &&
+          request.time < get(/databases/$(database)/documents/decisions/$(decisionId)).data.endsAt;
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+
+    // 4. Civilization Chronicle
+    match /chronicles/{chronicleId} {
+      allow get: if isValidId(chronicleId);
+      allow list: if existing().civId is string;
+      allow create: if isValidId(chronicleId) && isAdmin() &&
+        isValidChronicle(incoming()) &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().executedAt == request.time &&
+        existsAfter(/databases/$(database)/documents/civilizations/$(incoming().civId));
+      allow update: if isValidId(chronicleId) && isAdmin() &&
+        isValidChronicle(incoming()) &&
+        incoming().civId == existing().civId &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().executedAt == existing().executedAt;
+      allow delete: if isValidId(chronicleId) && isAdmin();
+    }
+
+    // 5. Civilization News
+    match /news/{newsId} {
+      allow get: if isValidId(newsId);
+      allow list: if existing().civId is string;
+      allow create: if isValidId(newsId) && isAdmin() &&
+        isValidNews(incoming()) &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().publishedAt == request.time &&
+        existsAfter(/databases/$(database)/documents/civilizations/$(incoming().civId));
+      allow update: if isValidId(newsId) && isAdmin() &&
+        isValidNews(incoming()) &&
+        incoming().civId == existing().civId &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().publishedAt == existing().publishedAt;
+      allow delete: if isValidId(newsId) && isAdmin();
+    }
+
+    // 5b. Automated Daily Island Events
+    match /events/{eventId} {
+      allow get: if isValidId(eventId);
+      allow list: if existing().civId is string;
+      allow create: if isValidId(eventId) && isAdmin() &&
+        isValidEvent(incoming()) &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().triggeredAt == request.time &&
+        existsAfter(/databases/$(database)/documents/civilizations/$(incoming().civId));
+      allow update: if isValidId(eventId) && isAdmin() &&
+        isValidEvent(incoming()) &&
+        incoming().civId == existing().civId &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().triggeredAt == existing().triggeredAt;
+      allow delete: if isValidId(eventId) && isAdmin();
+    }
+
+    // 6. Citizens (Public non-PII profiles; list allowed so public visitor stats show real registered roster)
+    match /citizens/{userId} {
+      allow get: if isValidId(userId);
+      allow list: if existing().status in ['active', 'suspended'];
+      allow create: if isValidId(userId) && isVerified() && isOwner(userId) &&
+        !exists(/databases/$(database)/documents/citizens/$(userId)) &&
+        isValidCitizen(incoming(), userId) &&
+        'citizenshipNumber' in incoming() &&
+        'citizenshipCode' in incoming() &&
+        'coins' in incoming() &&
+        'xp' in incoming() &&
+        'level' in incoming() &&
+        incoming().coins == 500 &&
+        incoming().xp == 0 &&
+        incoming().level == 1 &&
+        incoming().joinedAt == request.time &&
+        incoming().lastActiveAt == request.time &&
+        incoming().votesCount == 0 &&
+        incoming().participationsCount == 0 &&
+        incoming().status == 'active' &&
+        incoming().lastVotedDecisionId == '' &&
+        (
+          incoming().role == 'citizen' ||
+          (incoming().role == 'founder' && request.auth.token.email == 'ch.p.deve@gmail.com')
+        ) &&
+        (
+          (
+            !exists(/databases/$(database)/documents/counters/world_registry) &&
+            getAfter(/databases/$(database)/documents/counters/world_registry).data.totalRegistered == 1 &&
+            getAfter(/databases/$(database)/documents/counters/world_registry).data.nextCitizenSeq == 1 &&
+            incoming().citizenshipNumber == 1
+          ) ||
+          (
+            exists(/databases/$(database)/documents/counters/world_registry) &&
+            getAfter(/databases/$(database)/documents/counters/world_registry).data.totalRegistered ==
+              get(/databases/$(database)/documents/counters/world_registry).data.totalRegistered + 1 &&
+            getAfter(/databases/$(database)/documents/counters/world_registry).data.nextCitizenSeq ==
+              get(/databases/$(database)/documents/counters/world_registry).data.nextCitizenSeq + 1 &&
+            incoming().citizenshipNumber ==
+              getAfter(/databases/$(database)/documents/counters/world_registry).data.nextCitizenSeq
+          )
+        );
+      allow update: if isValidId(userId) && isVerified() &&
+        isValidCitizen(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().joinedAt == existing().joinedAt &&
+        incoming().lastActiveAt == request.time &&
+        (!('citizenshipNumber' in existing()) || incoming().citizenshipNumber == existing().citizenshipNumber) &&
+        (!('citizenshipCode' in existing()) || incoming().citizenshipCode == existing().citizenshipCode) &&
+        (
+          isAdmin() ||
+          (
+            isOwner(userId) &&
+            existing().status == 'active' &&
+            incoming().role == existing().role &&
+            incoming().status == existing().status &&
+            (
+              // A. Profile customization, profession, avatar color, world position, online state
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'displayName', 'photoURL', 'professionEn', 'professionAr',
+                'avatarColor', 'worldPosition', 'isOnline', 'lastActiveAt'
+              ]) ||
+              // B. Bounded world exploration XP & saved world position
+              (
+                incoming().diff(existing()).affectedKeys().hasOnly([
+                  'worldPosition', 'xp', 'level', 'isOnline', 'lastActiveAt'
+                ]) &&
+                incoming().xp >= numField(existing(), 'xp', 0) &&
+                incoming().xp <= numField(existing(), 'xp', 0) + 30 &&
+                incoming().level >= numField(existing(), 'level', 1) &&
+                incoming().level <= numField(existing(), 'level', 1) + 1
+              ) ||
+              // C. Vote + civic XP/coin reward atomic with Vote creation
+              (
+                incoming().diff(existing()).affectedKeys().hasOnly([
+                  'votesCount', 'participationsCount', 'lastVotedDecisionId',
+                  'xp', 'coins', 'level', 'lastActiveAt'
+                ]) &&
+                incoming().votesCount == existing().votesCount + 1 &&
+                incoming().participationsCount == existing().participationsCount + 1 &&
+                numField(incoming(), 'coins', 0) >= numField(existing(), 'coins', 0) &&
+                numField(incoming(), 'coins', 0) <= numField(existing(), 'coins', 0) + 50 &&
+                numField(incoming(), 'xp', 0) >= numField(existing(), 'xp', 0) &&
+                numField(incoming(), 'xp', 0) <= numField(existing(), 'xp', 0) + 50 &&
+                numField(incoming(), 'level', 1) >= numField(existing(), 'level', 1) &&
+                numField(incoming(), 'level', 1) <= numField(existing(), 'level', 1) + 1 &&
+                isValidId(incoming().lastVotedDecisionId) &&
+                !exists(/databases/$(database)/documents/decisions/$(incoming().lastVotedDecisionId)/votes/$(userId)) &&
+                existsAfter(/databases/$(database)/documents/decisions/$(incoming().lastVotedDecisionId)/votes/$(userId))
+              ) ||
+              // D. Purchasing an island property using earned coins
+              (
+                incoming().diff(existing()).affectedKeys().hasOnly(['coins', 'assets', 'lastActiveAt']) &&
+                'coins' in existing() &&
+                incoming().coins >= 0 &&
+                incoming().coins < existing().coins &&
+                incoming().assets is list &&
+                incoming().assets.size() <= 30 &&
+                incoming().assets.size() == listSizeOrZero(existing(), 'assets') + 1
+              ) ||
+              // E. One-time migration for legacy citizen profiles missing citizenshipNumber
+              (
+                !('citizenshipNumber' in existing()) &&
+                incoming().diff(existing()).affectedKeys().hasOnly([
+                  'displayName', 'photoURL', 'citizenshipNumber', 'citizenshipCode',
+                  'professionEn', 'professionAr', 'coins', 'assets', 'xp', 'level',
+                  'avatarColor', 'worldPosition', 'isOnline', 'lastActiveAt'
+                ]) &&
+                incoming().coins == 500 &&
+                incoming().xp == 0 &&
+                incoming().level == 1
+              )
+            )
+          )
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // 6b. Atomic World Registry Counters
+    match /counters/{counterId} {
+      allow get: if isValidId(counterId);
+      allow list: if existing().id is string;
+      allow create: if isValidId(counterId) &&
+        counterId == 'world_registry' &&
+        isValidWorldCounter(incoming(), counterId) &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            isVerified() &&
+            !exists(/databases/$(database)/documents/citizens/$(request.auth.uid)) &&
+            existsAfter(/databases/$(database)/documents/citizens/$(request.auth.uid)) &&
+            incoming().totalRegistered == 1 &&
+            incoming().nextCitizenSeq == 1
+          )
+        );
+      allow update: if isValidId(counterId) &&
+        counterId == 'world_registry' &&
+        isValidWorldCounter(incoming(), counterId) &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            isVerified() &&
+            !exists(/databases/$(database)/documents/citizens/$(request.auth.uid)) &&
+            existsAfter(/databases/$(database)/documents/citizens/$(request.auth.uid)) &&
+            incoming().totalRegistered == existing().totalRegistered + 1 &&
+            incoming().nextCitizenSeq == existing().nextCitizenSeq + 1
+          )
+        );
+      allow delete: if isValidId(counterId) && isAdmin();
+    }
+
+    // 6c. Real-Time Online Presence & 3D World Coordinates
+    match /world_presence/{userId} {
+      allow get: if isValidId(userId);
+      allow list: if existing().uid is string;
+      allow create, update: if isValidId(userId) &&
+        isVerified() && isOwner(userId) &&
+        isValidWorldPresence(incoming(), userId) &&
+        incoming().lastSeenAt == request.time;
+      allow delete: if isValidId(userId) && (isOwner(userId) || isAdmin());
+    }
+
+    // 7. Users Private (Strict PII isolation)
+    match /users_private/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin() && existing().uid is string;
+      allow create: if isValidId(userId) && isVerified() && isOwner(userId) &&
+        isValidUserPrivate(incoming(), userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) && isVerified() && (isOwner(userId) || isAdmin()) &&
+        isValidUserPrivate(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // 8. Admin Role Registry
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin() && existing().uid is string;
+      allow create: if isValidId(userId) && isAdmin() &&
+        isValidAdminRole(incoming(), userId) &&
+        incoming().grantedBy == request.auth.uid &&
+        incoming().grantedAt == request.time;
+      allow update: if false;
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+  }
+}

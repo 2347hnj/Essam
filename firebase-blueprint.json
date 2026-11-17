@@ -1,0 +1,407 @@
+{
+  "entities": {
+    "Civilization": {
+      "title": "Civilization",
+      "description": "Shared core state of a virtual island civilization, extensible to multiple islands and cities.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 2, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "nameEn": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "nameAr": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "islandNameEn": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "islandNameAr": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "eraEn": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "eraAr": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "dayNumber": { "type": "number" },
+        "level": { "type": "number" },
+        "population": { "type": "number" },
+        "food": { "type": "number" },
+        "water": { "type": "number" },
+        "energy": { "type": "number" },
+        "treasury": { "type": "number" },
+        "health": { "type": "number" },
+        "education": { "type": "number" },
+        "happiness": { "type": "number" },
+        "simVersion": { "type": "number" },
+        "lastSimulationSummary": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "nameEn",
+        "nameAr",
+        "islandNameEn",
+        "islandNameAr",
+        "eraEn",
+        "eraAr",
+        "dayNumber",
+        "level",
+        "population",
+        "food",
+        "water",
+        "energy",
+        "treasury",
+        "health",
+        "education",
+        "happiness",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Building": {
+      "title": "Building",
+      "description": "Construction project or landmark placed on the island map.",
+      "type": "object",
+      "properties": {
+        "civId": { "type": "string", "minLength": 2, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "nameEn": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "nameAr": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "descriptionEn": { "type": "string", "minLength": 1, "maxLength": 600 },
+        "descriptionAr": { "type": "string", "minLength": 1, "maxLength": 600 },
+        "category": {
+          "type": "string",
+          "enum": ["infrastructure", "agriculture", "factory", "energy", "civic", "science", "health"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["planned", "constructing", "completed"]
+        },
+        "progress": { "type": "number" },
+        "level": { "type": "number" },
+        "xPercent": { "type": "number" },
+        "yPercent": { "type": "number" },
+        "dailyOutput": { "type": "object" },
+        "dailyUpkeep": { "type": "object" },
+        "createdBy": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "civId",
+        "nameEn",
+        "nameAr",
+        "descriptionEn",
+        "descriptionAr",
+        "category",
+        "status",
+        "progress",
+        "level",
+        "xPercent",
+        "yPercent",
+        "createdBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Decision": {
+      "title": "Decision",
+      "description": "Daily collective decision proposal with multiple options and voting deadline.",
+      "type": "object",
+      "properties": {
+        "civId": { "type": "string", "minLength": 2, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "titleEn": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "titleAr": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "descriptionEn": { "type": "string", "minLength": 2, "maxLength": 1200 },
+        "descriptionAr": { "type": "string", "minLength": 2, "maxLength": 1200 },
+        "category": {
+          "type": "string",
+          "enum": ["infrastructure", "ecology", "economy", "society", "science"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "closed", "approved", "rejected"]
+        },
+        "options": { "type": "array" },
+        "winningOptionId": { "type": "string", "maxLength": 64 },
+        "endsAt": { "type": "string", "format": "date-time" },
+        "approvedAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "civId",
+        "titleEn",
+        "titleAr",
+        "descriptionEn",
+        "descriptionAr",
+        "category",
+        "status",
+        "options",
+        "endsAt",
+        "createdBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Vote": {
+      "title": "Vote",
+      "description": "Immutable single vote cast by an authenticated verified citizen for a specific decision.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "decisionId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "optionId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "decisionId", "optionId", "createdAt"]
+    },
+    "Chronicle": {
+      "title": "Chronicle",
+      "description": "Historical archive record of an approved decision and its lasting impact on the island.",
+      "type": "object",
+      "properties": {
+        "civId": { "type": "string", "minLength": 2, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "decisionId": { "type": "string", "maxLength": 128 },
+        "dayNumber": { "type": "number" },
+        "titleEn": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "titleAr": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "outcomeEn": { "type": "string", "minLength": 2, "maxLength": 1000 },
+        "outcomeAr": { "type": "string", "minLength": 2, "maxLength": 1000 },
+        "winningOptionEn": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "winningOptionAr": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "totalVotes": { "type": "number" },
+        "winningPercentage": { "type": "number" },
+        "imageUrl": { "type": "string", "maxLength": 400 },
+        "effects": { "type": "object" },
+        "executedAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" }
+      },
+      "required": [
+        "civId",
+        "dayNumber",
+        "titleEn",
+        "titleAr",
+        "outcomeEn",
+        "outcomeAr",
+        "winningOptionEn",
+        "winningOptionAr",
+        "totalVotes",
+        "winningPercentage",
+        "imageUrl",
+        "effects",
+        "executedAt",
+        "createdBy"
+      ]
+    },
+    "NewsBulletin": {
+      "title": "NewsBulletin",
+      "description": "Official civilization dispatch published by the founder.",
+      "type": "object",
+      "properties": {
+        "civId": { "type": "string", "minLength": 2, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "titleEn": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "titleAr": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "bodyEn": { "type": "string", "minLength": 2, "maxLength": 2000 },
+        "bodyAr": { "type": "string", "minLength": 2, "maxLength": 2000 },
+        "category": { "type": "string", "enum": ["announcement", "milestone", "directive", "ecology"] },
+        "createdBy": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "publishedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "civId",
+        "titleEn",
+        "titleAr",
+        "bodyEn",
+        "bodyAr",
+        "category",
+        "createdBy",
+        "publishedAt"
+      ]
+    },
+    "Citizen": {
+      "title": "Citizen",
+      "description": "Public citizen profile without PII, tracking citizenship identity, profession, wealth, assets, XP, avatar, and votes.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "photoURL": { "type": "string", "maxLength": 500 },
+        "citizenshipNumber": { "type": "number" },
+        "citizenshipCode": { "type": "string", "maxLength": 32 },
+        "professionEn": { "type": "string", "maxLength": 80 },
+        "professionAr": { "type": "string", "maxLength": 80 },
+        "coins": { "type": "number" },
+        "assets": { "type": "array" },
+        "xp": { "type": "number" },
+        "level": { "type": "number" },
+        "avatarColor": { "type": "string", "maxLength": 24 },
+        "worldPosition": { "type": "object" },
+        "isOnline": { "type": "boolean" },
+        "votesCount": { "type": "number" },
+        "participationsCount": { "type": "number" },
+        "role": { "type": "string", "enum": ["citizen", "admin", "founder"] },
+        "status": { "type": "string", "enum": ["active", "suspended"] },
+        "lastVotedDecisionId": { "type": "string", "maxLength": 128 },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "lastActiveAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "photoURL",
+        "votesCount",
+        "participationsCount",
+        "role",
+        "status",
+        "lastVotedDecisionId",
+        "joinedAt",
+        "lastActiveAt"
+      ]
+    },
+    "WorldCounter": {
+      "title": "WorldCounter",
+      "description": "Atomic population and sequential citizenship counter synchronized strictly with registered citizen accounts.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "totalRegistered": { "type": "number" },
+        "nextCitizenSeq": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "totalRegistered", "nextCitizenSeq", "updatedAt"]
+    },
+    "WorldPresence": {
+      "title": "WorldPresence",
+      "description": "Real-time online presence and 3D avatar coordinates for multiplayer synchronization.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "citizenshipCode": { "type": "string", "maxLength": 32 },
+        "professionEn": { "type": "string", "maxLength": 80 },
+        "professionAr": { "type": "string", "maxLength": 80 },
+        "avatarColor": { "type": "string", "maxLength": 24 },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" },
+        "yaw": { "type": "number" },
+        "speed": { "type": "number" },
+        "isOnline": { "type": "boolean" },
+        "isInWorld": { "type": "boolean" },
+        "lastSeenAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "citizenshipCode",
+        "professionEn",
+        "professionAr",
+        "avatarColor",
+        "x",
+        "y",
+        "z",
+        "yaw",
+        "speed",
+        "isOnline",
+        "isInWorld",
+        "lastSeenAt"
+      ]
+    },
+    "UserPrivate": {
+      "title": "UserPrivate",
+      "description": "Isolated PII record for citizen email, accessible only to owner and admins.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "maxLength": 200 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt", "updatedAt"]
+    },
+    "AdminRole": {
+      "title": "AdminRole",
+      "description": "Trusted admin grant registry document keyed by user UID.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "grantedBy": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "grantedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "grantedBy", "grantedAt"]
+    },
+    "IslandEvent": {
+      "title": "IslandEvent",
+      "description": "Automated daily random event and simulation breakdown recorded per simulated day.",
+      "type": "object",
+      "properties": {
+        "civId": { "type": "string", "minLength": 2, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "dayNumber": { "type": "number" },
+        "titleEn": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "titleAr": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "descriptionEn": { "type": "string", "minLength": 2, "maxLength": 1000 },
+        "descriptionAr": { "type": "string", "minLength": 2, "maxLength": 1000 },
+        "severity": { "type": "string", "enum": ["positive", "neutral", "warning"] },
+        "effects": { "type": "object" },
+        "breakdown": { "type": "object" },
+        "triggeredAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" }
+      },
+      "required": [
+        "civId",
+        "dayNumber",
+        "titleEn",
+        "titleAr",
+        "descriptionEn",
+        "descriptionAr",
+        "severity",
+        "effects",
+        "breakdown",
+        "triggeredAt",
+        "createdBy"
+      ]
+    }
+  },
+  "firestore": {
+    "/civilizations/{civId}": {
+      "schema": { "$ref": "#/entities/Civilization" },
+      "description": "Shared civilization metrics and island evolution state."
+    },
+    "/buildings/{buildingId}": {
+      "schema": { "$ref": "#/entities/Building" },
+      "description": "Buildings, farms, factories, and development projects on the island map."
+    },
+    "/decisions/{decisionId}": {
+      "schema": { "$ref": "#/entities/Decision" },
+      "description": "Daily collective decision proposals and voting options."
+    },
+    "/decisions/{decisionId}/votes/{userId}": {
+      "schema": { "$ref": "#/entities/Vote" },
+      "description": "Single immutable vote per verified user per decision."
+    },
+    "/chronicles/{chronicleId}": {
+      "schema": { "$ref": "#/entities/Chronicle" },
+      "description": "Executed decisions archive with impacts, dates, and imagery."
+    },
+    "/events/{eventId}": {
+      "schema": { "$ref": "#/entities/IslandEvent" },
+      "description": "Automated daily island events and simulation breakdowns."
+    },
+    "/news/{newsId}": {
+      "schema": { "$ref": "#/entities/NewsBulletin" },
+      "description": "Official civilization news dispatches."
+    },
+    "/citizens/{userId}": {
+      "schema": { "$ref": "#/entities/Citizen" },
+      "description": "Public citizen profile with citizenship code, profession, assets, XP, avatar, and votes."
+    },
+    "/counters/{counterId}": {
+      "schema": { "$ref": "#/entities/WorldCounter" },
+      "description": "Atomic registry counters enforcing unique citizenship sequences and real population totals."
+    },
+    "/world_presence/{userId}": {
+      "schema": { "$ref": "#/entities/WorldPresence" },
+      "description": "Real-time online presence and 3D avatar coordinates for multiplayer island exploration."
+    },
+    "/users_private/{userId}": {
+      "schema": { "$ref": "#/entities/UserPrivate" },
+      "description": "Strict PII-isolated user email record."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminRole" },
+      "description": "Admin role grants controlled exclusively by founder/admins."
+    }
+  }
+}

@@ -1,0 +1,58 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --font-display-en: "Cinzel", Georgia, serif;
+    --font-sans-en: "Plus Jakarta Sans", system-ui, sans-serif;
+    --font-sans-ar: "Cairo", system-ui, sans-serif;
+    --font-mono-data: "JetBrains Mono", ui-monospace, monospace;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-sans-en);
+    background-color: #071118;
+    color: #f1f5f9;
+    overflow-x: hidden;
+  }
+
+  html[lang="ar"] body {
+    font-family: var(--font-sans-ar);
+  }
+}
+
+.font-display-en {
+  font-family: var(--font-display-en);
+}
+
+.font-mono-data {
+  font-family: var(--font-mono-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom sleek dark scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #071118;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1a3442;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #274c5f;
+}
